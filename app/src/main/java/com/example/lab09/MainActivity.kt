@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -32,61 +35,64 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.lab09.data.remote.PostApiService
-import com.example.lab09.screen.ScreenPost
-import com.example.lab09.screen.ScreenPosts
+import com.example.lab09.data.repository.PostRepository
+import com.example.lab09.ui.navigation.AppNavigation
+import com.example.lab09.ui.screen.ScreenPost
+import com.example.lab09.ui.screen.ScreenPosts
+import com.example.lab09.ui.screen.post_detail.PostDetailViewModel
+import com.example.lab09.ui.screen.posts.PostsViewModel
 import com.example.lab09.ui.theme.Lab09Theme
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : ComponentActivity() {
+    private val retrofit = Retrofit.Builder()
+        .baseUrl("https://jsonplaceholder.typicode.com/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    private val apiService = retrofit.create(PostApiService::class.java)
+    private val repository = PostRepository(apiService)
+    private val postsViewModel by viewModels<PostsViewModel> {
+        object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return PostsViewModel(repository) as T
+            }
+        }
+    }
+    private val postDetailViewModel by viewModels<PostDetailViewModel> {
+        object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return PostDetailViewModel(repository) as T
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             Lab09Theme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                val navController = rememberNavController()
+                Scaffold(
+                    topBar = { BarraSuperior() },
+                    bottomBar = { BarraInferior(navController) }
+                ) { paddingValues ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
+                        AppNavigation(
+                            navController = navController,
+                            postsViewModel = postsViewModel,
+                            postDetailViewModel = postDetailViewModel
+                        )
+                    }
                 }
             }
         }
     }
 }
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    Lab09Theme {
-        Greeting("Android")
-    }
-}
-
-
-@Composable
-fun ProgPrincipal9() {
-    val urlBase = "https://jsonplaceholder.typicode.com/"
-    val retrofit = Retrofit.Builder().baseUrl(urlBase)
-        .addConverterFactory(GsonConverterFactory.create()).build()
-    val servicio = retrofit.create(PostApiService::class.java)
-    val navController = rememberNavController()
-
-    Scaffold(
-        topBar =    { BarraSuperior() },
-        bottomBar = { BarraInferior(navController) },
-        content =   { paddingValues -> Contenido(paddingValues, navController, servicio) }
-    )
-}
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,43 +130,3 @@ fun BarraInferior(navController: NavHostController) {
         )
     }
 }
-
-
-@Composable
-fun Contenido(
-    pv: PaddingValues,
-    navController: NavHostController,
-    servicio: PostApiService
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(pv)
-    ) {
-        NavHost(
-            navController = navController,
-            startDestination = "inicio" // Ruta de inicio
-        ) {
-            composable("inicio") { ScreenInicio() }
-
-            composable("posts") { ScreenPosts(navController, servicio) }
-            composable("postsVer/{id}", arguments = listOf(
-                navArgument("id") { type = NavType.IntType} )
-            ) {
-                ScreenPost(navController, servicio, it.arguments!!.getInt("id"))
-            }
-        }
-    }
-}
-
-
-
-@Composable
-fun ScreenInicio() {
-    Text("INICIO")
-}
-
-
-
-
-

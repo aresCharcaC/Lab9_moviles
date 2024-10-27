@@ -1,4 +1,4 @@
-package com.example.lab09.screen
+package com.example.lab09.ui.screen
 
 
 import android.util.Log
